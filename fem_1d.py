@@ -153,17 +153,28 @@ class parts(object):
     self.f = f
 
   def create_tophat_f( self ) :
+    self.f = self.tophat_f()
+
+  def tophat_f( self ) :
     N = self.N
-    self.f = np.zeros( N )
+
+    f = np.zeros( N )
     i = 0
 
     for x in self.r:
       if ((x>0.25) and (x<0.75)):
-        self.f[i] = 1
+        f[i] = 1
       else:
-        self.f[i] = 0
+        f[i] = 0
       i+=1
 
+    return f
+
+  def fidelity( self ) :
+    f0 = self.tophat_f()
+    return np.linalg.norm( self.f - f0) / np.linalg.norm(f0)
+
+  
   def create_linear_f( self ) :
     self.f = self.r
 
@@ -497,49 +508,59 @@ class mesh(parts):
 
 
 #   FLIP volume:
+# TODO: extended functions
 
   def flip_volumes(self , part) :
     N = self.N
+    r = self.r
 
     self.fvol=np.zeros( N )
 
+    for p in xrange( 0 , part.size() ) :
+    
+      x = part.r[ p ]
+
+      ip1= ( np.searchsorted( r , x ) ) % N
+      ii= (ip1 + N -1) % N
+
+      # self.fvol[i] += phi_i * part.f[ p ] * part.vol[ p ]
+
+      self.fvol[ip1] += self.phi(ip1 , x ) * part.vol[ p ]
+      self.fvol[ii ] += self.phi(ii  , x ) * part.vol[ p ]
+
+      
+    # in case no volume is gathered.-
+
     for i in xrange( 0 , N ) :
-
-      for p in xrange( 0 , part.size() ) :
-
-        r_p = part.r[ p ]
-
-# todo: early termination if outside suppor of node i
-        phi_i = self.phi(i, r_p)
-
-        # self.fvol[i] += phi_i * part.f[ p ] * part.vol[ p ]
-        self.fvol[i] += phi_i * part.vol[ p ]
-
-      # in case no volume is gathered.-
       if (self.fvol[i] < 1e-16) :
         self.fvol[i] = self.vol[i]
 
-#   FLIP volume:
+#   FLIP assign:
+# TODO: extended functions
 
   def flip_assign(self , part) :
 
 #    self.flip_volumes(part)
 
     N = self.N
+    r = self.r
 
     self.f = np.zeros( N )
 
-    for i in xrange( 0 , N ) :
+    for p in xrange( 0 , part.size() ) :
+    
+      x = part.r[ p ]
 
-      for p in xrange( 0 , part.size() ) :
+      ip1= ( np.searchsorted( r , x ) ) % N
+      ii= (ip1 + N -1) % N
 
-        r_p = part.r[ p ]
+      # self.fvol[i] += phi_i * part.f[ p ] * part.vol[ p ]
 
-        phi_i = self.phi(i, r_p)
-
-        self.f[i] += phi_i * part.f[ p ] * part.vol[ p ]
-
+      self.f[ip1] += self.phi(ip1 , x ) * part.f[ p ] * part.vol[ p ]
+      self.f[ii ] += self.phi(ii  , x ) * part.f[ p ] * part.vol[ p ]
+        
     self.f /= self.fvol
+
 
   def assign_f( self , part ) :
     N = self.N
